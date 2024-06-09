@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { ShopService } from "../shop.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { ShopCreateInput } from "./ShopCreateInput";
 import { Shop } from "./Shop";
 import { ShopFindManyArgs } from "./ShopFindManyArgs";
@@ -29,10 +33,24 @@ import { ServiceFindManyArgs } from "../../service/base/ServiceFindManyArgs";
 import { Service } from "../../service/base/Service";
 import { ServiceWhereUniqueInput } from "../../service/base/ServiceWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class ShopControllerBase {
-  constructor(protected readonly service: ShopService) {}
+  constructor(
+    protected readonly service: ShopService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Shop })
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createShop(@common.Body() data: ShopCreateInput): Promise<Shop> {
     return await this.service.createShop({
       data: data,
@@ -49,9 +67,18 @@ export class ShopControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Shop] })
   @ApiNestedQuery(ShopFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async shops(@common.Req() request: Request): Promise<Shop[]> {
     const args = plainToClass(ShopFindManyArgs, request.query);
     return this.service.shops({
@@ -69,9 +96,18 @@ export class ShopControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Shop })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async shop(
     @common.Param() params: ShopWhereUniqueInput
   ): Promise<Shop | null> {
@@ -96,9 +132,18 @@ export class ShopControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Shop })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateShop(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() data: ShopUpdateInput
@@ -131,6 +176,14 @@ export class ShopControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Shop })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteShop(
     @common.Param() params: ShopWhereUniqueInput
   ): Promise<Shop | null> {
@@ -158,8 +211,14 @@ export class ShopControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/reviews")
   @ApiNestedQuery(ReviewFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Review",
+    action: "read",
+    possession: "any",
+  })
   async findReviews(
     @common.Req() request: Request,
     @common.Param() params: ShopWhereUniqueInput
@@ -198,6 +257,11 @@ export class ShopControllerBase {
   }
 
   @common.Post("/:id/reviews")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async connectReviews(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ReviewWhereUniqueInput[]
@@ -215,6 +279,11 @@ export class ShopControllerBase {
   }
 
   @common.Patch("/:id/reviews")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async updateReviews(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ReviewWhereUniqueInput[]
@@ -232,6 +301,11 @@ export class ShopControllerBase {
   }
 
   @common.Delete("/:id/reviews")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async disconnectReviews(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ReviewWhereUniqueInput[]
@@ -248,8 +322,14 @@ export class ShopControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/services")
   @ApiNestedQuery(ServiceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "read",
+    possession: "any",
+  })
   async findServices(
     @common.Req() request: Request,
     @common.Param() params: ShopWhereUniqueInput
@@ -283,6 +363,11 @@ export class ShopControllerBase {
   }
 
   @common.Post("/:id/services")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async connectServices(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ServiceWhereUniqueInput[]
@@ -300,6 +385,11 @@ export class ShopControllerBase {
   }
 
   @common.Patch("/:id/services")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async updateServices(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ServiceWhereUniqueInput[]
@@ -317,6 +407,11 @@ export class ShopControllerBase {
   }
 
   @common.Delete("/:id/services")
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async disconnectServices(
     @common.Param() params: ShopWhereUniqueInput,
     @common.Body() body: ServiceWhereUniqueInput[]

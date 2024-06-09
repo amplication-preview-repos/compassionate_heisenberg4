@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Shop } from "./Shop";
 import { ShopCountArgs } from "./ShopCountArgs";
 import { ShopFindManyArgs } from "./ShopFindManyArgs";
@@ -25,10 +31,20 @@ import { Review } from "../../review/base/Review";
 import { ServiceFindManyArgs } from "../../service/base/ServiceFindManyArgs";
 import { Service } from "../../service/base/Service";
 import { ShopService } from "../shop.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Shop)
 export class ShopResolverBase {
-  constructor(protected readonly service: ShopService) {}
+  constructor(
+    protected readonly service: ShopService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "read",
+    possession: "any",
+  })
   async _shopsMeta(
     @graphql.Args() args: ShopCountArgs
   ): Promise<MetaQueryPayload> {
@@ -38,12 +54,24 @@ export class ShopResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Shop])
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "read",
+    possession: "any",
+  })
   async shops(@graphql.Args() args: ShopFindManyArgs): Promise<Shop[]> {
     return this.service.shops(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Shop, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "read",
+    possession: "own",
+  })
   async shop(@graphql.Args() args: ShopFindUniqueArgs): Promise<Shop | null> {
     const result = await this.service.shop(args);
     if (result === null) {
@@ -52,7 +80,13 @@ export class ShopResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Shop)
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "create",
+    possession: "any",
+  })
   async createShop(@graphql.Args() args: CreateShopArgs): Promise<Shop> {
     return await this.service.createShop({
       ...args,
@@ -60,7 +94,13 @@ export class ShopResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Shop)
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "update",
+    possession: "any",
+  })
   async updateShop(@graphql.Args() args: UpdateShopArgs): Promise<Shop | null> {
     try {
       return await this.service.updateShop({
@@ -78,6 +118,11 @@ export class ShopResolverBase {
   }
 
   @graphql.Mutation(() => Shop)
+  @nestAccessControl.UseRoles({
+    resource: "Shop",
+    action: "delete",
+    possession: "any",
+  })
   async deleteShop(@graphql.Args() args: DeleteShopArgs): Promise<Shop | null> {
     try {
       return await this.service.deleteShop(args);
@@ -91,7 +136,13 @@ export class ShopResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Review], { name: "reviews" })
+  @nestAccessControl.UseRoles({
+    resource: "Review",
+    action: "read",
+    possession: "any",
+  })
   async findReviews(
     @graphql.Parent() parent: Shop,
     @graphql.Args() args: ReviewFindManyArgs
@@ -105,7 +156,13 @@ export class ShopResolverBase {
     return results;
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => [Service], { name: "services" })
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "read",
+    possession: "any",
+  })
   async findServices(
     @graphql.Parent() parent: Shop,
     @graphql.Args() args: ServiceFindManyArgs

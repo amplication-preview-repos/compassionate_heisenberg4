@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { ServiceService } from "../service.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { ServiceCreateInput } from "./ServiceCreateInput";
 import { Service } from "./Service";
 import { ServiceFindManyArgs } from "./ServiceFindManyArgs";
@@ -26,10 +30,24 @@ import { AppointmentFindManyArgs } from "../../appointment/base/AppointmentFindM
 import { Appointment } from "../../appointment/base/Appointment";
 import { AppointmentWhereUniqueInput } from "../../appointment/base/AppointmentWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class ServiceControllerBase {
-  constructor(protected readonly service: ServiceService) {}
+  constructor(
+    protected readonly service: ServiceService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Service })
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createService(
     @common.Body() data: ServiceCreateInput
   ): Promise<Service> {
@@ -62,9 +80,18 @@ export class ServiceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Service] })
   @ApiNestedQuery(ServiceFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async services(@common.Req() request: Request): Promise<Service[]> {
     const args = plainToClass(ServiceFindManyArgs, request.query);
     return this.service.services({
@@ -88,9 +115,18 @@ export class ServiceControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Service })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async service(
     @common.Param() params: ServiceWhereUniqueInput
   ): Promise<Service | null> {
@@ -121,9 +157,18 @@ export class ServiceControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Service })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateService(
     @common.Param() params: ServiceWhereUniqueInput,
     @common.Body() data: ServiceUpdateInput
@@ -170,6 +215,14 @@ export class ServiceControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Service })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteService(
     @common.Param() params: ServiceWhereUniqueInput
   ): Promise<Service | null> {
@@ -203,8 +256,14 @@ export class ServiceControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/appointments")
   @ApiNestedQuery(AppointmentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Appointment",
+    action: "read",
+    possession: "any",
+  })
   async findAppointments(
     @common.Req() request: Request,
     @common.Param() params: ServiceWhereUniqueInput
@@ -241,6 +300,11 @@ export class ServiceControllerBase {
   }
 
   @common.Post("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "update",
+    possession: "any",
+  })
   async connectAppointments(
     @common.Param() params: ServiceWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -258,6 +322,11 @@ export class ServiceControllerBase {
   }
 
   @common.Patch("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "update",
+    possession: "any",
+  })
   async updateAppointments(
     @common.Param() params: ServiceWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
@@ -275,6 +344,11 @@ export class ServiceControllerBase {
   }
 
   @common.Delete("/:id/appointments")
+  @nestAccessControl.UseRoles({
+    resource: "Service",
+    action: "update",
+    possession: "any",
+  })
   async disconnectAppointments(
     @common.Param() params: ServiceWhereUniqueInput,
     @common.Body() body: AppointmentWhereUniqueInput[]
